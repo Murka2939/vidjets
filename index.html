@@ -3,72 +3,108 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Fliqlo Style Clock</title>
-    <!-- подключаем стили и скрипты flipclock -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flipclock@0.7.8/dist/flipclock.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/flipclock@0.7.8/dist/flipclock.min.js"></script>
+    <title>Fliqlo Pure CSS</title>
     <style>
-        body {
-            background: #000000;
+        * {
             margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            background: #000;
             min-height: 100vh;
             display: flex;
             justify-content: center;
             align-items: center;
             font-family: 'Courier New', monospace;
         }
-        .clock-container {
-            transform: scale(1.2); /* чуть увеличим для эффектности */
+        .clock {
+            display: flex;
+            gap: 20px;
+            background: #000;
+            padding: 20px;
         }
-        /* подгоняем цвета и тени под Fliqlo */
-        .flip-clock-wrapper {
-            width: auto;
+        .flip-unit {
+            position: relative;
+            width: 140px;
+            height: 200px;
+            background: #1a1a1a;
+            border-radius: 10px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.5);
+            overflow: hidden;
+        }
+        .flip-digit {
+            position: absolute;
+            width: 100%;
+            height: 100%;
             text-align: center;
-        }
-        .flip-clock-divider .flip-clock-label {
-            color: #aaa;
-            font-size: 14px;
-            bottom: -30px;
-        }
-        .flip-clock-dot {
-            background: #fff;
-            box-shadow: 0 0 5px #fff;
-        }
-        .flip-clock-wrapper ul li a div div.inn {
-            background-color: #222;
-            color: #fff;
-            text-shadow: 0 0 5px rgba(255,255,255,0.5);
+            font-size: 150px;
             font-weight: bold;
+            line-height: 200px;
+            color: #fff;
+            background: #1a1a1a;
+            transition: transform 0.4s ease;
+            transform-style: preserve-3d;
         }
-        .flip-clock-wrapper ul {
-            box-shadow: 0 0 10px rgba(0,0,0,0.3);
+        .separator {
+            font-size: 150px;
+            font-weight: bold;
+            color: #fff;
+            line-height: 200px;
+            text-shadow: 0 0 5px rgba(255,255,255,0.5);
+        }
+        /* анимация переворота */
+        .flip-digit.flip {
+            transform: rotateX(-90deg);
+        }
+        @media (max-width: 600px) {
+            .flip-unit { width: 70px; height: 100px; }
+            .flip-digit { font-size: 75px; line-height: 100px; }
+            .separator { font-size: 75px; line-height: 100px; }
+            .clock { gap: 10px; }
         }
     </style>
 </head>
 <body>
-<div class="clock-container">
-    <div class="clock"></div>
+<div class="clock">
+    <div class="flip-unit" id="hourTens"><div class="flip-digit" id="hourTensDigit">0</div></div>
+    <div class="flip-unit" id="hourUnits"><div class="flip-digit" id="hourUnitsDigit">0</div></div>
+    <div class="separator">:</div>
+    <div class="flip-unit" id="minuteTens"><div class="flip-digit" id="minuteTensDigit">0</div></div>
+    <div class="flip-unit" id="minuteUnits"><div class="flip-digit" id="minuteUnitsDigit">0</div></div>
 </div>
 
 <script>
-    $(document).ready(function() {
-        // инициализация часов с форматом 24h, показываем часы и минуты
-        var clock = $('.clock').FlipClock({
-            clockFace: 'TwentyFourHourClock',
-            showSeconds: false,   // у Fliqlo обычно секунд нет
-            callbacks: {
-                init: function() {
-                    // после инициализации можно убрать надписи "hours", "minutes"
-                    $('.flip-clock-label').hide();
-                }
-            }
-        });
-        // убираем стандартные надписи "hours", "minutes" — они нам не нужны
-        setTimeout(function() {
-            $('.flip-clock-label').remove();
-        }, 100);
-    });
+    function updateClock() {
+        const now = new Date();
+        const hours = now.getHours().toString().padStart(2, '0');
+        const minutes = now.getMinutes().toString().padStart(2, '0');
+        
+        updateDigit('hourTensDigit', hours[0]);
+        updateDigit('hourUnitsDigit', hours[1]);
+        updateDigit('minuteTensDigit', minutes[0]);
+        updateDigit('minuteUnitsDigit', minutes[1]);
+    }
+    
+    function updateDigit(elementId, newValue) {
+        const digitElem = document.getElementById(elementId);
+        const currentValue = digitElem.textContent;
+        if (currentValue === newValue) return;
+        
+        // Добавляем класс анимации
+        digitElem.classList.add('flip');
+        // Меняем значение после начала анимации
+        setTimeout(() => {
+            digitElem.textContent = newValue;
+        }, 200);
+        // Убираем класс анимации
+        setTimeout(() => {
+            digitElem.classList.remove('flip');
+        }, 400);
+    }
+    
+    updateClock();
+    setInterval(updateClock, 1000);
 </script>
 </body>
 </html>
