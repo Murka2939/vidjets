@@ -1,135 +1,170 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Fliqlo Style Clock</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flipdown@0.3.2/dist/flipdown.min.css">
+    <title>Fliqlo Style Clock (White)</title>
+    <!-- Шрифт Digital-7 -->
+    <link href="https://fonts.cdnfonts.com/css/digital-7" rel="stylesheet">
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            user-select: none;
         }
         body {
-            background: #000;
+            background: #fff; /* белый фон */
             min-height: 100vh;
             display: flex;
             justify-content: center;
             align-items: center;
-            font-family: 'Courier New', monospace;
+            font-family: 'Digital-7', monospace;
         }
         .container {
             text-align: center;
             padding: 20px;
         }
-        /* Дата и день недели сверху (стиль Fliqlo) */
+        /* Дата сверху */
         .date {
-            color: #fff;
-            font-size: 1.8rem;
-            letter-spacing: 2px;
-            margin-bottom: 30px;
-            font-weight: 400;
-            text-transform: uppercase;
-            font-family: 'Courier New', monospace;
+            color: #000; /* чёрный текст */
+            font-size: 2rem;
+            letter-spacing: 1px;
+            margin-bottom: 40px;
+            font-family: 'Digital-7', monospace;
+            text-transform: lowercase;
+            font-weight: normal;
             opacity: 0.9;
         }
-        /* FlipDown контейнер */
-        .flipdown {
-            margin: 0 auto;
-            transform: scale(1.2);
+        .date .weekday {
+            text-transform: capitalize;
         }
-        /* Кастомизация под Fliqlo */
-        .flipdown .rotor {
-            background-color: #1a1a1a;
-            box-shadow: 0 0 12px rgba(0,0,0,0.6);
+        .clock {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap;
         }
-        .flipdown .rotor-leaf-front,
-        .flipdown .rotor-leaf-rear {
-            background-color: #1a1a1a;
-            color: #fff;
-            text-shadow: 0 0 4px rgba(255,255,255,0.3);
+        /* Flip-карточки: светлый фон, тень, чёрные цифры */
+        .flip-card {
+            width: 120px;
+            height: 180px;
+            background: #f5f5f5;  /* светло-серый фон карточки */
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            position: relative;
+            overflow: hidden;
+        }
+        .flip-digit {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 140px;
             font-weight: bold;
+            color: #000; /* чёрные цифры */
+            background: #f5f5f5;
+            transition: transform 0.4s cubic-bezier(0.4, 0.0, 0.2, 1);
+            transform-style: preserve-3d;
+            font-family: 'Digital-7', monospace;
         }
-        /* Скрываем заголовки (дни, часы, минуты, секунды) */
-        .flipdown .rotor-group-heading {
-            display: none;
+        .flip-digit.flip {
+            transform: rotateX(-90deg);
         }
-        /* Для мобильных устройств уменьшаем масштаб */
-        @media (max-width: 600px) {
-            .flipdown {
-                transform: scale(0.9);
-            }
-            .date {
-                font-size: 1.2rem;
-                margin-bottom: 20px;
-            }
+        .separator {
+            font-size: 140px;
+            font-weight: bold;
+            color: #000; /* чёрный разделитель */
+            text-shadow: none;
+            line-height: 180px;
+            font-family: 'Digital-7', monospace;
+        }
+        /* Адаптивность */
+        @media (max-width: 800px) {
+            .flip-card { width: 80px; height: 120px; }
+            .flip-digit { font-size: 90px; }
+            .separator { font-size: 90px; line-height: 120px; }
+            .date { font-size: 1.4rem; margin-bottom: 30px; }
+            .clock { gap: 10px; }
+        }
+        @media (max-width: 550px) {
+            .flip-card { width: 60px; height: 90px; }
+            .flip-digit { font-size: 65px; }
+            .separator { font-size: 65px; line-height: 90px; }
+            .date { font-size: 1rem; margin-bottom: 25px; }
         }
     </style>
 </head>
 <body>
 <div class="container">
     <div class="date" id="dateDisplay"></div>
-    <div id="flipdown" class="flipdown"></div>
+    <div class="clock">
+        <!-- Часы -->
+        <div class="flip-card" id="hourTens"><div class="flip-digit" id="hourTensDigit">0</div></div>
+        <div class="flip-card" id="hourUnits"><div class="flip-digit" id="hourUnitsDigit">0</div></div>
+        <div class="separator">:</div>
+        <!-- Минуты -->
+        <div class="flip-card" id="minuteTens"><div class="flip-digit" id="minuteTensDigit">0</div></div>
+        <div class="flip-card" id="minuteUnits"><div class="flip-digit" id="minuteUnitsDigit">0</div></div>
+        <div class="separator">:</div>
+        <!-- Секунды -->
+        <div class="flip-card" id="secondTens"><div class="flip-digit" id="secondTensDigit">0</div></div>
+        <div class="flip-card" id="secondUnits"><div class="flip-digit" id="secondUnitsDigit">0</div></div>
+    </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/flipdown@0.3.2/dist/flipdown.min.js"></script>
 <script>
-    // Функция обновления даты и времени
-    function updateClock() {
+    // Функция обновления даты в формате: 26-march-2026 Thursday
+    function updateDate() {
         const now = new Date();
         
-        // --- День недели и дата (сверху) ---
-        const weekdays = ['Воскресенье', 'Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота'];
-        const months = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
-        const weekday = weekdays[now.getDay()];
+        const months = ['january', 'february', 'march', 'april', 'may', 'june',
+                        'july', 'august', 'september', 'october', 'november', 'december'];
+        const weekdays = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+        
         const day = now.getDate();
         const month = months[now.getMonth()];
-        const dateString = `${weekday}, ${day} ${month}`;
+        const year = now.getFullYear();
+        const weekday = weekdays[now.getDay()];
+        
+        const dateString = `${day}-${month}-${year} ${weekday.charAt(0).toUpperCase() + weekday.slice(1)}`;
         document.getElementById('dateDisplay').textContent = dateString;
-        
-        // --- Часы и минуты для FlipDown ---
-        const hours = now.getHours();
-        const minutes = now.getMinutes();
-        // Создаём timestamp на сегодняшний день с текущими часами и минутами (секунды = 0)
-        const targetTime = new Date();
-        targetTime.setHours(hours, minutes, 0, 0);
-        const timestamp = targetTime.getTime() / 1000;
-        
-        // Пересоздаём FlipDown, чтобы обновить время
-        const container = document.getElementById('flipdown');
-        if (container._flipdown) {
-            container._flipdown = null;
-        }
-        container.innerHTML = '';
-        
-        const flipdown = new FlipDown(timestamp, {
-            theme: 'dark',
-            headings: [] // отключаем заголовки
-        }).start();
-        
-        // Скрываем ненужные группы (дни и секунды) — оставляем только часы и минуты
-        setTimeout(() => {
-            const groups = document.querySelectorAll('.flipdown .rotor-group');
-            // Обычно порядок: дни, часы, минуты, секунды
-            if (groups.length >= 4) {
-                groups[0].style.display = 'none'; // дни
-                groups[3].style.display = 'none'; // секунды
-            } else if (groups.length === 3) {
-                groups[0].style.display = 'none'; // дни (если нет секунд)
-            }
-            // Убираем двоеточие между часами и минутами (можно оставить, но в Fliqlo его нет)
-            const dividers = document.querySelectorAll('.flipdown .rotor-group:nth-child(2) .rotor-group-divider');
-            dividers.forEach(div => div.style.display = 'none');
-        }, 50);
-        
-        container._flipdown = flipdown;
     }
     
-    // Запускаем при загрузке
-    updateClock();
-    // Обновляем каждую минуту (когда меняются минуты)
-    setInterval(updateClock, 60000);
+    function updateDigit(elementId, newValue) {
+        const digitElem = document.getElementById(elementId);
+        const currentValue = digitElem.textContent;
+        if (currentValue === newValue) return;
+        
+        digitElem.classList.add('flip');
+        setTimeout(() => {
+            digitElem.textContent = newValue;
+        }, 200);
+        setTimeout(() => {
+            digitElem.classList.remove('flip');
+        }, 400);
+    }
+    
+    function updateTime() {
+        const now = new Date();
+        const hours = now.getHours().toString().padStart(2, '0');
+        const minutes = now.getMinutes().toString().padStart(2, '0');
+        const seconds = now.getSeconds().toString().padStart(2, '0');
+        
+        updateDigit('hourTensDigit', hours[0]);
+        updateDigit('hourUnitsDigit', hours[1]);
+        updateDigit('minuteTensDigit', minutes[0]);
+        updateDigit('minuteUnitsDigit', minutes[1]);
+        updateDigit('secondTensDigit', seconds[0]);
+        updateDigit('secondUnitsDigit', seconds[1]);
+    }
+    
+    updateDate();
+    updateTime();
+    setInterval(updateTime, 1000);
+    setInterval(updateDate, 60000);
 </script>
 </body>
 </html>
