@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Часы для заметок</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none; /* чтобы не выделялся текст при клике */
+        }
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background: transparent; /* фон будет как у страницы */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: system-ui, 'Segoe UI', 'Inter', -apple-system, sans-serif;
+            padding: 20px;
+        }
+        .widget {
+            background: rgba(255,255,255,0.9);
+            backdrop-filter: blur(8px);
+            border-radius: 32px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.02);
+            padding: 24px 32px;
+            text-align: center;
+            transition: all 0.2s;
+            width: 100%;
+            max-width: 380px;
+            border: 1px solid rgba(0,0,0,0.05);
+        }
+        /* тёмная тема для Notion / Buildin (если страница тёмная) */
+        @media (prefers-color-scheme: dark) {
+            .widget {
+                background: rgba(30,30,35,0.9);
+                backdrop-filter: blur(8px);
+                border-color: rgba(255,255,255,0.1);
+                color: #f0f0f0;
+            }
+        }
+
+        /* цифровые часы */
+        .digital-time {
+            font-size: 4rem;
+            font-weight: 600;
+            letter-spacing: 2px;
+            line-height: 1.2;
+            font-feature-settings: 'tnum';
+            font-variant-numeric: tabular-nums;
+        }
+        .digital-date {
+            font-size: 1.1rem;
+            opacity: 0.7;
+            margin-top: 8px;
+        }
+
+        /* аналоговые часы */
+        .analog-container {
+            position: relative;
+            width: 200px;
+            height: 200px;
+            margin: 0 auto;
+        }
+        canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+        .toggle-btn {
+            margin-top: 20px;
+            background: rgba(0,0,0,0.05);
+            border: none;
+            padding: 8px 16px;
+            border-radius: 40px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: 0.2s;
+            font-weight: 500;
+            color: inherit;
+        }
+        .toggle-btn:hover {
+            background: rgba(0,0,0,0.1);
+        }
+        @media (prefers-color-scheme: dark) {
+            .toggle-btn {
+                background: rgba(255,255,255,0.1);
+            }
+            .toggle-btn:hover {
+                background: rgba(255,255,255,0.2);
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="widget" id="widget">
+    <div id="digitalView">
+        <div class="digital-time" id="digitalTime">--:--:--</div>
+        <div class="digital-date" id="digitalDate">-- ----</div>
+    </div>
+    <div id="analogView" style="display: none;">
+        <div class="analog-container">
+            <canvas id="clockCanvas" width="200" height="200"></canvas>
+        </div>
+    </div>
+    <button class="toggle-btn" id="toggleBtn">🕒 Переключить вид</button>
+</div>
+
+<script>
+    // Получение параметров из URL (можно задать часовой пояс и начальный режим)
+    const urlParams = new URLSearchParams(window.location.search);
+    let timezone = urlParams.get('timezone') || Intl.DateTimeFormat().resolvedOptions().timeZone;
+    let initialMode = urlParams.get('mode'); // 'digital' или 'analog'
+
+    // Состояние: true - цифровые, false - аналоговые
+    let isDigital = (initialMode === 'digital') || (initialMode !== 'analog'); // по умолчанию цифровые
+
+    const digitalDiv = document.getElementById('digitalView');
+    const analogDiv = document.getElementById('analogView');
+    const toggleBtn = document.getElementById('toggleBtn');
+
+    // Элементы цифровых
+    const digitalTimeSpan = document.getElementById('digitalTime');
+    const digitalDateSpan = document.getElementById('digitalDate');
+
+    // Элементы аналоговых
+    const canvas = document.getElementById('clockCanvas');
+    const ctx = canvas.getContext('2d');
+    let animationId = null;
+
+    // Форматирование цифрового времени
+    function updateDigital() {
+        const now = new Date();
+        // Для корректного отображения с учётом часового пояса используем Intl
+        const formatterTime = new Intl.DateTimeFormat('ru-RU', {
+            timeZone: timezone,
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false
+        });
+        const formatterDate = new Intl.DateTimeFormat('ru-RU', {
+            timeZone: timezone,
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric'
+        });
+        const timeStr = formatterTime.format(now);
+        const dateStr = formatterDate.format(now);
+        digitalTimeSpan.textContent = timeStr;
+        digitalDateSpan.textContent = dateStr;
+    }
+
+    // Рисование аналоговых часов
+    function drawAnalog() {
+        const now = new Date();
+        // Преобразуем время в заданный часовой пояс
+        const options = { timeZone: timezone, hour: 'numeric', minute: 'numeric', second: 'numeric', hour12: false };
+        const parts = new Intl.DateTimeFormat('en-US', options).formatToParts(now);
+        let hours = 0, minutes = 0, seconds = 0;
+        for (const part of parts) {
+            if (part.type === 'hour') hours = parseInt(part.value, 10);
+            if (part.type === 'minute') minutes = parseInt(part.value, 10);
+            if (part.type === 'second') seconds = parseInt(part.value, 10);
+        }
+        // Нормализация для 12-часового формата стрелок
+        const hour12 = hours % 12;
+        const hourAngle = (hour12 + minutes / 60) * 30 * Math.PI / 180;
+        const minuteAngle = (minutes + seconds / 60) * 6 * Math.PI / 180;
+        const secondAngle = seconds * 6 * Math.PI / 180;
+
+        const radius = canvas.width / 2;
+        const centerX = radius;
+        const centerY = radius;
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, radius * 0.9, 0, 2 * Math.PI);
+        ctx.fillStyle = 'transparent';
+        ctx.fill();
+        ctx.strokeStyle = '#888';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // рисовать метки часов
+        for (let i = 1; i <= 12; i++) {
+            const angle = (i * 30 - 90) * Math.PI / 180;
+            const x1 = centerX + (radius - 10) * Math.cos(angle);
+            const y1 = centerY + (radius - 10) * Math.sin(angle);
+            const x2 = centerX + (radius - 20) * Math.cos(angle);
+            const y2 = centerY + (radius - 20) * Math.sin(angle);
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            ctx.strokeStyle = '#aaa';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+        }
+
+        // часовая стрелка
+        ctx.beginPath();
+        ctx.moveTo(centerX, centerY);
+        const hourX = centerX + (radius * 0.5) * Math.cos(hourAngle);
+        const hourY = centerY + (radius * 0.5) * Math.sin(hourAngle);
+        ctx.lineTo(hourX, hourY);
+        ctx.lineWidth = 4;
+        ctx.strokeStyle = '#333';
+        ctx.stroke();
+
+        // минутная стрелка
+        ctx.beginPath();
+        ctx.moveTo(centerX, centerY);
+        const minuteX = centerX + (radius * 0.7) * Math.cos(minuteAngle);
+        const minuteY = centerY + (radius * 0.7) * Math.sin(minuteAngle);
+        ctx.lineTo(minuteX, minuteY);
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = '#555';
+        ctx.stroke();
+
+        // секундная стрелка
+        ctx.beginPath();
+        ctx.moveTo(centerX, centerY);
+        const secondX = centerX + (radius * 0.85) * Math.cos(secondAngle);
+        const secondY = centerY + (radius * 0.85) * Math.sin(secondAngle);
+        ctx.lineTo(secondX, secondY);
+        ctx.lineWidth = 1.5;
+        ctx.strokeStyle = '#e00';
+        ctx.stroke();
+
+        // центр
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, 4, 0, 2 * Math.PI);
+        ctx.fillStyle = '#e00';
+        ctx.fill();
+    }
+
+    function updateAnalog() {
+        drawAnalog();
+        // запланировать следующий кадр
+        animationId = requestAnimationFrame(updateAnalog);
+    }
+
+    function startAnalogLoop() {
+        if (animationId) cancelAnimationFrame(animationId);
+        updateAnalog(); // запускаем цикл
+    }
+
+    function stopAnalogLoop() {
+        if (animationId) {
+            cancelAnimationFrame(animationId);
+            animationId = null;
+        }
+    }
+
+    // Переключение вида
+    function setMode(digital) {
+        isDigital = digital;
+        if (isDigital) {
+            digitalDiv.style.display = 'block';
+            analogDiv.style.display = 'none';
+            stopAnalogLoop();
+            updateDigital();
+            // Цифровые обновляются по интервалу
+            if (window.digitalInterval) clearInterval(window.digitalInterval);
+            window.digitalInterval = setInterval(updateDigital, 1000);
+        } else {
+            digitalDiv.style.display = 'none';
+            analogDiv.style.display = 'block';
+            if (window.digitalInterval) clearInterval(window.digitalInterval);
+            startAnalogLoop();
+        }
+    }
+
+    toggleBtn.addEventListener('click', () => {
+        setMode(!isDigital);
+    });
+
+    // Инициализация
+    function init() {
+        setMode(isDigital);
+    }
+
+    // Запускаем, когда DOM готов
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
+</script>
+</body>
+</html>
